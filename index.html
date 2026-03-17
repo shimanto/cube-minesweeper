@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Cube Minesweeper</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --cell-size: 40px;
+  --face-size: calc(var(--cell-size) * 5);
+  --half-face: calc(var(--face-size) / 2);
+}
+
+html {
+  background: #0f0c29;
+}
+
+html, body {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+body {
+  font-family: 'Segoe UI', 'Helvetica Neue', sans-serif;
+  background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.about-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #ddd;
+  text-decoration: none;
+  padding: 8px 20px;
+  border-radius: 24px;
+  font-size: clamp(13px, 3.5vw, 15px);
+  margin-bottom: 10px;
+  transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.about-link:hover, .about-link:active {
+  background: rgba(255,255,255,0.15);
+  border-color: rgba(255,255,255,0.3);
+  color: #fff;
+}
+
+.about-link .link-icon {
+  font-size: 1.1em;
+}
+
+h1 {
+  font-size: clamp(18px, 5vw, 28px);
+  font-weight: 300;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  text-align: center;
+  background: linear-gradient(90deg, #f093fb, #f5576c, #4facfe);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  width: 100%;
+  max-width: 360px;
+  padding: 0 10px;
+}
+
+.info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font-size: clamp(14px, 4vw, 20px);
+  width: 100%;
+}
+
+.info .counter {
+  background: rgba(0,0,0,0.5);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+  min-width: 70px;
+  text-align: center;
+}
+
+.reset-btn {
+  font-size: clamp(22px, 6vw, 28px);
+  cursor: pointer;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 8px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.mode-buttons {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  max-width: 300px;
+}
+
+.mode-btn {
+  flex: 1;
+  background: rgba(255,255,255,0.08);
+  border: 2px solid rgba(255,255,255,0.2);
+  color: #fff;
+  padding: 10px 8px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: clamp(14px, 3.5vw, 16px);
+  text-align: center;
+  transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mode-btn.active {
+  border-color: #4facfe;
+  background: rgba(79, 172, 254, 0.2);
+  box-shadow: 0 0 12px rgba(79, 172, 254, 0.3);
+}
+
+.mode-btn.flag-mode.active {
+  border-color: #f5576c;
+  background: rgba(245, 87, 108, 0.2);
+  box-shadow: 0 0 12px rgba(245, 87, 108, 0.3);
+}
+
+.scene-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 0;
+}
+
+.scene {
+  width: var(--face-size);
+  height: var(--face-size);
+  perspective: calc(var(--face-size) * 4.5);
+  perspective-origin: 50% 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: scale(var(--scene-scale, 1));
+  transform-origin: center center;
+}
+
+.cube {
+  width: var(--face-size);
+  height: var(--face-size);
+  position: relative;
+  transform-style: preserve-3d;
+}
+
+.face {
+  position: absolute;
+  width: var(--face-size);
+  height: var(--face-size);
+  display: grid;
+  grid-template-columns: repeat(5, var(--cell-size));
+  grid-template-rows: repeat(5, var(--cell-size));
+  backface-visibility: hidden;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.face-front  { transform: translateZ(var(--half-face)); }
+.face-back   { transform: rotateY(180deg) translateZ(var(--half-face)); }
+.face-top    { transform: rotateX(90deg) translateZ(var(--half-face)); }
+.face-bottom { transform: rotateX(-90deg) translateZ(var(--half-face)); }
+.face-left   { transform: rotateY(-90deg) translateZ(var(--half-face)); }
+.face-right  { transform: rotateY(90deg) translateZ(var(--half-face)); }
+
+.cell {
+  width: var(--cell-size);
+  height: var(--cell-size);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(12px, 3.5vw, 16px);
+  font-weight: bold;
+  cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.15);
+  transition: background 0.1s;
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cell.unrevealed { background: rgba(255,255,255,0.18); }
+.cell.revealed { background: rgba(0,0,0,0.3); cursor: default; }
+.cell.mine-hit { background: rgba(255, 50, 50, 0.6) !important; }
+.cell.flagged { background: rgba(255, 100, 100, 0.25); }
+
+.face-front .cell.unrevealed  { background: rgba(100, 180, 255, 0.2); }
+.face-back .cell.unrevealed   { background: rgba(100, 255, 150, 0.2); }
+.face-top .cell.unrevealed    { background: rgba(255, 255, 100, 0.2); }
+.face-bottom .cell.unrevealed { background: rgba(255, 150, 200, 0.2); }
+.face-left .cell.unrevealed   { background: rgba(200, 150, 255, 0.2); }
+.face-right .cell.unrevealed  { background: rgba(255, 180, 100, 0.2); }
+
+.face-front .cell.revealed  { background: rgba(100, 180, 255, 0.08); }
+.face-back .cell.revealed   { background: rgba(100, 255, 150, 0.08); }
+.face-top .cell.revealed    { background: rgba(255, 255, 100, 0.08); }
+.face-bottom .cell.revealed { background: rgba(255, 150, 200, 0.08); }
+.face-left .cell.revealed   { background: rgba(200, 150, 255, 0.08); }
+.face-right .cell.revealed  { background: rgba(255, 180, 100, 0.08); }
+
+.n1 { color: #4facfe; }
+.n2 { color: #43e97b; }
+.n3 { color: #f5576c; }
+.n4 { color: #a18cd1; }
+.n5 { color: #ff9a9e; }
+.n6 { color: #4ecdc4; }
+.n7 { color: #fff; }
+.n8 { color: #888; }
+
+.hint {
+  font-size: clamp(11px, 2.8vw, 13px);
+  color: rgba(255,255,255,0.35);
+  text-align: center;
+  padding: 6px 10px;
+}
+
+.face-label {
+  position: absolute;
+  bottom: 2px;
+  right: 4px;
+  font-size: 9px;
+  color: rgba(255,255,255,0.2);
+  pointer-events: none;
+}
+
+.game-over-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.5);
+  z-index: 100;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s;
+  padding: 20px;
+}
+
+.game-over-overlay.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.game-over-msg {
+  background: rgba(30, 30, 60, 0.95);
+  padding: 24px 36px;
+  border-radius: 16px;
+  text-align: center;
+  border: 1px solid rgba(255,255,255,0.1);
+  max-width: 90vw;
+}
+
+.game-over-msg h2 { font-size: clamp(22px, 6vw, 32px); margin-bottom: 8px; }
+.game-over-msg p { font-size: clamp(14px, 3.5vw, 16px); color: rgba(255,255,255,0.7); margin-bottom: 14px; }
+
+.game-over-msg button {
+  background: linear-gradient(90deg, #f093fb, #f5576c);
+  border: none;
+  color: #fff;
+  padding: 12px 36px;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Long-press feedback */
+.cell.pressing {
+  outline: 2px solid #f5576c;
+  outline-offset: -2px;
+}
+</style>
+</head>
+<body>
+
+<h1>Cube Minesweeper</h1>
+<a href="about.html" target="_blank" rel="noopener" class="about-link"><span class="link-icon">📝</span> 制作過程・技術解説</a>
+
+<div class="controls">
+  <div class="info">
+    <div class="counter" id="mine-count">💣 25</div>
+    <button class="reset-btn" id="reset-btn" onclick="initGame()">😊</button>
+    <div class="counter" id="timer">⏱ 0</div>
+  </div>
+  <div class="mode-buttons">
+    <button class="mode-btn active" id="dig-btn" onclick="setMode('dig')">⛏ 掘る</button>
+    <button class="mode-btn flag-mode" id="flag-btn" onclick="setMode('flag')">🚩 旗を立てる</button>
+  </div>
+</div>
+
+<div class="scene-wrapper" id="scene-wrapper">
+  <div class="scene" id="scene">
+    <div class="cube" id="cube"></div>
+  </div>
+</div>
+
+<p class="hint" id="hint">スワイプで回転 / タップで掘る / 長押しで旗</p>
+
+<div class="game-over-overlay" id="overlay">
+  <div class="game-over-msg">
+    <h2 id="overlay-title"></h2>
+    <p id="overlay-text"></p>
+    <button onclick="initGame()">もう一度</button>
+  </div>
+</div>
+
+<script>
+const N = 5;
+const FACES = 6;
+const TOTAL = FACES * N * N;
+const MINE_COUNT = 25;
+const FACE_NAMES = ['front', 'back', 'top', 'bottom', 'left', 'right'];
+const FACE_LABELS = ['Front', 'Back', 'Top', 'Bottom', 'Left', 'Right'];
+
+let mines, numbers, revealed, flagged;
+let gameOver, firstClick, flagMode = false;
+let seconds, timerInterval;
+
+// --- Responsive scaling ---
+function updateScale() {
+  const wrapper = document.getElementById('scene-wrapper');
+  const scene = document.getElementById('scene');
+  const wrapperW = wrapper.clientWidth;
+  const wrapperH = wrapper.clientHeight;
+  // The cube needs about face-size * 1.8 to show rotated comfortably
+  const faceSize = 200;
+  const needed = faceSize * 1.8;
+  const scale = Math.min(wrapperW / needed, wrapperH / needed, 1.2);
+  scene.style.setProperty('--scene-scale', scale);
+}
+window.addEventListener('resize', updateScale);
+
+// --- Rotation ---
+let rotX = -25, rotY = 30;
+const cubeEl = document.getElementById('cube');
+const sceneEl = document.getElementById('scene');
+
+function updateCubeTransform() {
+  cubeEl.style.transform = `rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+}
+
+// --- Unified pointer handling (mouse + touch) ---
+const DRAG_THRESHOLD = 8;
+const LONG_PRESS_MS = 400;
+
+let pointerDown = false, pointerDidDrag = false;
+let pStartX, pStartY, pLastX, pLastY;
+let pTarget = null;
+let longPressTimer = null;
+let longPressFired = false;
+let pressingCell = null;
+
+function clearLongPress() {
+  if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+  if (pressingCell) { pressingCell.classList.remove('pressing'); pressingCell = null; }
+}
+
+function findCellId(el) {
+  while (el && el !== sceneEl) {
+    if (el.dataset && el.dataset.id !== undefined) return el;
+    el = el.parentElement;
+  }
+  return null;
+}
+
+function onPointerDown(x, y, target) {
+  pointerDown = true;
+  pointerDidDrag = false;
+  longPressFired = false;
+  pStartX = pLastX = x;
+  pStartY = pLastY = y;
+  pTarget = findCellId(target);
+
+  // Long press for flag (works regardless of mode)
+  clearLongPress();
+  if (pTarget) {
+    pressingCell = pTarget;
+    pressingCell.classList.add('pressing');
+    longPressTimer = setTimeout(() => {
+      longPressFired = true;
+      clearLongPress();
+      const id = parseInt(pTarget.dataset.id);
+      handleFlag(id);
+    }, LONG_PRESS_MS);
+  }
+}
+
+function onPointerMove(x, y) {
+  if (!pointerDown) return;
+  const dx = x - pLastX;
+  const dy = y - pLastY;
+  const totalDx = x - pStartX;
+  const totalDy = y - pStartY;
+  if (Math.abs(totalDx) > DRAG_THRESHOLD || Math.abs(totalDy) > DRAG_THRESHOLD) {
+    pointerDidDrag = true;
+    clearLongPress();
+  }
+  if (pointerDidDrag) {
+    rotY += dx * 0.5;
+    rotX -= dy * 0.5;
+    updateCubeTransform();
+  }
+  pLastX = x;
+  pLastY = y;
+}
+
+function onPointerUp(button) {
+  if (!pointerDown) return;
+  pointerDown = false;
+  clearLongPress();
+
+  if (!pointerDidDrag && !longPressFired && pTarget) {
+    const id = parseInt(pTarget.dataset.id);
+    if (button === 2) {
+      handleFlag(id);
+    } else {
+      handleCellClick(id);
+    }
+  }
+  pTarget = null;
+}
+
+// Mouse events
+sceneEl.addEventListener('mousedown', (e) => {
+  e.preventDefault();
+  onPointerDown(e.clientX, e.clientY, e.target);
+});
+window.addEventListener('mousemove', (e) => onPointerMove(e.clientX, e.clientY));
+window.addEventListener('mouseup', (e) => onPointerUp(e.button));
+sceneEl.addEventListener('contextmenu', (e) => e.preventDefault());
+
+// Touch events
+sceneEl.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  const t = e.changedTouches[0];
+  onPointerDown(t.clientX, t.clientY, e.target);
+}, { passive: false });
+
+window.addEventListener('touchmove', (e) => {
+  if (!pointerDown) return;
+  const t = e.changedTouches[0];
+  onPointerMove(t.clientX, t.clientY);
+  if (pointerDidDrag) e.preventDefault();
+}, { passive: false });
+
+window.addEventListener('touchend', (e) => {
+  if (pointerDown) {
+    e.preventDefault();
+    onPointerUp(0);
+  }
+}, { passive: false });
+
+window.addEventListener('touchcancel', () => {
+  pointerDown = false;
+  clearLongPress();
+});
+
+// --- Adjacency via 3D corner sharing ---
+function getCellCorners(f, r, c) {
+  const corners = [];
+  switch (f) {
+    case 0:
+      for (let dx = 0; dx <= 1; dx++)
+        for (let dy = 0; dy <= 1; dy++)
+          corners.push([c + dx, 4 - r + dy, 5]);
+      break;
+    case 1:
+      for (let dx = 0; dx <= 1; dx++)
+        for (let dy = 0; dy <= 1; dy++)
+          corners.push([4 - c + dx, 4 - r + dy, 0]);
+      break;
+    case 2:
+      for (let dx = 0; dx <= 1; dx++)
+        for (let dz = 0; dz <= 1; dz++)
+          corners.push([c + dx, 5, r + dz]);
+      break;
+    case 3:
+      for (let dx = 0; dx <= 1; dx++)
+        for (let dz = 0; dz <= 1; dz++)
+          corners.push([c + dx, 0, 4 - r + dz]);
+      break;
+    case 4:
+      for (let dy = 0; dy <= 1; dy++)
+        for (let dz = 0; dz <= 1; dz++)
+          corners.push([0, 4 - r + dy, c + dz]);
+      break;
+    case 5:
+      for (let dy = 0; dy <= 1; dy++)
+        for (let dz = 0; dz <= 1; dz++)
+          corners.push([5, 4 - r + dy, 4 - c + dz]);
+      break;
+  }
+  return corners;
+}
+
+function precomputeNeighbors() {
+  const cornerMap = {};
+  for (let f = 0; f < FACES; f++) {
+    for (let r = 0; r < N; r++) {
+      for (let c = 0; c < N; c++) {
+        const id = f * N * N + r * N + c;
+        for (const [x, y, z] of getCellCorners(f, r, c)) {
+          const key = `${x},${y},${z}`;
+          if (!cornerMap[key]) cornerMap[key] = [];
+          cornerMap[key].push(id);
+        }
+      }
+    }
+  }
+  const nbrs = Array.from({ length: TOTAL }, () => new Set());
+  for (const cells of Object.values(cornerMap)) {
+    for (let i = 0; i < cells.length; i++)
+      for (let j = i + 1; j < cells.length; j++) {
+        nbrs[cells[i]].add(cells[j]);
+        nbrs[cells[j]].add(cells[i]);
+      }
+  }
+  return nbrs.map(s => [...s]);
+}
+
+// --- Game Logic ---
+function cellId(f, r, c) { return f * N * N + r * N + c; }
+
+function placeMines(safeId) {
+  mines = new Set();
+  const safeSet = new Set([safeId, ...neighborList[safeId]]);
+  const candidates = [];
+  for (let i = 0; i < TOTAL; i++) {
+    if (!safeSet.has(i)) candidates.push(i);
+  }
+  for (let i = candidates.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+  }
+  for (let i = 0; i < Math.min(MINE_COUNT, candidates.length); i++) {
+    mines.add(candidates[i]);
+  }
+  numbers = new Array(TOTAL).fill(0);
+  for (const mineId of mines) {
+    for (const nbrId of neighborList[mineId]) {
+      numbers[nbrId]++;
+    }
+  }
+}
+
+function setMode(mode) {
+  flagMode = mode === 'flag';
+  document.getElementById('dig-btn').classList.toggle('active', !flagMode);
+  document.getElementById('flag-btn').classList.toggle('active', flagMode);
+}
+
+function updateMineCount() {
+  const flagCount = flagged.filter(Boolean).length;
+  document.getElementById('mine-count').textContent = `💣 ${MINE_COUNT - flagCount}`;
+}
+
+function startTimer() {
+  if (timerInterval) return;
+  timerInterval = setInterval(() => {
+    seconds++;
+    document.getElementById('timer').textContent = `⏱ ${seconds}`;
+  }, 1000);
+}
+
+function handleCellClick(id) {
+  if (gameOver || revealed[id]) return;
+  if (flagMode) { handleFlag(id); return; }
+  if (flagged[id]) return;
+  if (firstClick) {
+    firstClick = false;
+    placeMines(id);
+    startTimer();
+  }
+  reveal(id);
+  checkWin();
+}
+
+function handleFlag(id) {
+  if (gameOver || revealed[id]) return;
+  flagged[id] = !flagged[id];
+  updateCellDisplay(id);
+  updateMineCount();
+}
+
+function reveal(id) {
+  if (revealed[id] || flagged[id]) return;
+  revealed[id] = true;
+  if (mines.has(id)) { endGame(false, id); return; }
+  updateCellDisplay(id);
+  if (numbers[id] === 0) {
+    for (const nbrId of neighborList[id]) reveal(nbrId);
+  }
+}
+
+function updateCellDisplay(id) {
+  const el = document.querySelector(`[data-id="${id}"]`);
+  if (!el) return;
+  el.className = 'cell';
+  el.textContent = '';
+  if (revealed[id]) {
+    el.classList.add('revealed');
+    if (mines.has(id)) {
+      el.textContent = '💣';
+    } else if (numbers[id] > 0) {
+      const span = document.createElement('span');
+      span.className = `n${numbers[id]}`;
+      span.textContent = numbers[id];
+      el.appendChild(span);
+    }
+  } else if (flagged[id]) {
+    el.classList.add('unrevealed', 'flagged');
+    el.textContent = '🚩';
+  } else {
+    el.classList.add('unrevealed');
+  }
+}
+
+function checkWin() {
+  if (gameOver) return;
+  for (let i = 0; i < TOTAL; i++) {
+    if (!revealed[i] && !mines.has(i)) return;
+  }
+  endGame(true, -1);
+}
+
+function endGame(won, hitId) {
+  gameOver = true;
+
+  clearInterval(timerInterval);
+  timerInterval = null;
+  document.getElementById('reset-btn').textContent = won ? '😎' : '😵';
+  if (!won) {
+    for (const mineId of mines) {
+      revealed[mineId] = true;
+      updateCellDisplay(mineId);
+    }
+    if (hitId >= 0) {
+      const el = document.querySelector(`[data-id="${hitId}"]`);
+      if (el) el.classList.add('mine-hit');
+    }
+  }
+  setTimeout(() => {
+    document.getElementById('overlay-title').textContent = won ? '🎉 クリア！' : '💥 ゲームオーバー';
+    document.getElementById('overlay-text').textContent = won ? `${seconds}秒でクリア！` : '地雷を踏んでしまいました...';
+    document.getElementById('overlay').classList.add('show');
+  }, won ? 200 : 600);
+}
+
+// --- Rendering ---
+function buildCube() {
+  const cube = document.getElementById('cube');
+  cube.innerHTML = '';
+  for (let f = 0; f < FACES; f++) {
+    const face = document.createElement('div');
+    face.className = `face face-${FACE_NAMES[f]}`;
+    for (let r = 0; r < N; r++) {
+      for (let c = 0; c < N; c++) {
+        const id = cellId(f, r, c);
+        const cell = document.createElement('div');
+        cell.className = 'cell unrevealed';
+        cell.dataset.id = id;
+        face.appendChild(cell);
+      }
+    }
+    const label = document.createElement('div');
+    label.className = 'face-label';
+    label.textContent = FACE_LABELS[f];
+    face.appendChild(label);
+    cube.appendChild(face);
+  }
+}
+
+function initGame() {
+  document.getElementById('overlay').classList.remove('show');
+  mines = new Set();
+  numbers = new Array(TOTAL).fill(0);
+  revealed = new Array(TOTAL).fill(false);
+  flagged = new Array(TOTAL).fill(false);
+  gameOver = false;
+
+  firstClick = true;
+  seconds = 0;
+  clearInterval(timerInterval);
+  timerInterval = null;
+  setMode('dig');
+
+  document.getElementById('timer').textContent = '⏱ 0';
+  document.getElementById('mine-count').textContent = `💣 ${MINE_COUNT}`;
+  document.getElementById('reset-btn').textContent = '😊';
+
+  buildCube();
+  updateCubeTransform();
+  updateScale();
+}
+
+// Detect touch device for hint text
+if ('ontouchstart' in window) {
+  document.getElementById('hint').textContent = 'スワイプで回転 / タップで掘る / 長押しで旗';
+} else {
+  document.getElementById('hint').textContent = 'ドラッグで回転 / クリックで掘る / 右クリックで旗';
+}
+
+const neighborList = precomputeNeighbors();
+initGame();
+</script>
+</body>
+</html>

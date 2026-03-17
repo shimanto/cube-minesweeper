@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>制作過程 - Cube Minesweeper</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html {
+  background: #0a0a1a;
+}
+
+body {
+  font-family: 'Segoe UI', 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+  background: #0a0a1a;
+  color: #e0e0e0;
+  line-height: 1.8;
+  -webkit-text-size-adjust: 100%;
+}
+
+.header {
+  background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+  padding: 40px 20px 30px;
+  text-align: center;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.header h1 {
+  font-size: clamp(20px, 5vw, 32px);
+  font-weight: 300;
+  letter-spacing: 2px;
+  background: linear-gradient(90deg, #f093fb, #f5576c, #4facfe);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 6px;
+}
+
+.header .subtitle {
+  font-size: clamp(12px, 3vw, 14px);
+  color: rgba(255,255,255,0.4);
+}
+
+.header .play-link {
+  display: inline-block;
+  margin-top: 10px;
+  color: #4facfe;
+  text-decoration: none;
+  font-size: 14px;
+  border: 1px solid rgba(79,172,254,0.3);
+  padding: 4px 16px;
+  border-radius: 20px;
+  transition: all 0.2s;
+}
+
+.header .play-link:hover {
+  background: rgba(79,172,254,0.1);
+}
+
+main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 20px 60px;
+}
+
+section {
+  padding: 32px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+section:last-child { border-bottom: none; }
+
+h2 {
+  font-size: clamp(18px, 4.5vw, 24px);
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+h2 .icon {
+  font-size: 1.2em;
+  display: inline-block;
+  width: 1.4em;
+  text-align: center;
+}
+
+h3 {
+  font-size: clamp(15px, 3.5vw, 18px);
+  font-weight: 600;
+  color: #ccc;
+  margin: 20px 0 10px;
+}
+
+p {
+  margin-bottom: 14px;
+  font-size: clamp(14px, 3.5vw, 16px);
+  color: #bbb;
+}
+
+/* Prompt cards */
+.prompt-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 16px 0;
+}
+
+.prompt-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 16px;
+  position: relative;
+}
+
+.prompt-card::before {
+  content: '';
+  position: absolute;
+  left: 24px;
+  bottom: -17px;
+  width: 2px;
+  height: 16px;
+  background: rgba(255,255,255,0.1);
+}
+
+.prompt-card:last-child::before { display: none; }
+
+.prompt-step {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.3);
+  margin-bottom: 6px;
+}
+
+.prompt-user {
+  background: rgba(79, 172, 254, 0.08);
+  border-left: 3px solid #4facfe;
+  padding: 8px 12px;
+  border-radius: 0 8px 8px 0;
+  margin-bottom: 10px;
+  font-size: clamp(14px, 3.5vw, 15px);
+  color: #8cc8ff;
+}
+
+.prompt-result {
+  font-size: clamp(13px, 3.2vw, 14px);
+  color: #999;
+}
+
+.prompt-result strong {
+  color: #ccc;
+}
+
+/* Code blocks */
+pre {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 14px;
+  overflow-x: auto;
+  margin: 12px 0;
+  font-size: clamp(12px, 3vw, 14px);
+  line-height: 1.6;
+  -webkit-overflow-scrolling: touch;
+}
+
+code {
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  color: #c8d6e5;
+}
+
+p code, li code {
+  background: rgba(255,255,255,0.06);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.9em;
+  color: #e8b4f8;
+}
+
+/* Stack diagram */
+.stack-diagram {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 16px 0;
+}
+
+.stack-layer {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  padding: 14px 16px;
+  text-align: center;
+  position: relative;
+}
+
+.stack-layer:first-child {
+  border-radius: 12px 12px 0 0;
+}
+
+.stack-layer:last-child {
+  border-radius: 0 0 12px 12px;
+}
+
+.stack-layer + .stack-layer {
+  border-top: none;
+}
+
+.stack-layer .layer-name {
+  font-weight: 700;
+  font-size: clamp(14px, 3.5vw, 16px);
+  color: #fff;
+  margin-bottom: 2px;
+}
+
+.stack-layer .layer-desc {
+  font-size: clamp(12px, 3vw, 13px);
+  color: #888;
+}
+
+.stack-layer:nth-child(1) { background: rgba(79, 172, 254, 0.1); border-color: rgba(79,172,254,0.2); }
+.stack-layer:nth-child(2) { background: rgba(240, 147, 251, 0.08); border-color: rgba(240,147,251,0.15); }
+.stack-layer:nth-child(3) { background: rgba(67, 233, 123, 0.08); border-color: rgba(67,233,123,0.15); }
+.stack-layer:nth-child(4) { background: rgba(245, 87, 108, 0.08); border-color: rgba(245,87,108,0.15); }
+.stack-layer:nth-child(5) { background: rgba(255, 200, 100, 0.08); border-color: rgba(255,200,100,0.15); }
+
+/* Lists */
+ul, ol {
+  margin: 10px 0 14px 20px;
+  font-size: clamp(14px, 3.5vw, 16px);
+  color: #bbb;
+}
+
+li {
+  margin-bottom: 6px;
+}
+
+/* Highlight box */
+.highlight-box {
+  background: rgba(79,172,254,0.06);
+  border: 1px solid rgba(79,172,254,0.15);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin: 14px 0;
+}
+
+.highlight-box p {
+  margin-bottom: 0;
+  color: #a0c8f0;
+  font-size: clamp(13px, 3.2vw, 14px);
+}
+
+/* Architecture figure */
+.arch-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.arch-item {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 14px;
+  text-align: center;
+}
+
+.arch-item .arch-icon {
+  font-size: 28px;
+  margin-bottom: 6px;
+}
+
+.arch-item .arch-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: #ddd;
+  margin-bottom: 4px;
+}
+
+.arch-item .arch-desc {
+  font-size: 12px;
+  color: #888;
+  line-height: 1.4;
+}
+
+.footer {
+  text-align: center;
+  padding: 30px 20px;
+  color: rgba(255,255,255,0.25);
+  font-size: 13px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+.footer a {
+  color: rgba(255,255,255,0.4);
+  text-decoration: none;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Cube Minesweeper 制作過程</h1>
+  <div class="subtitle">Claude Code で 3D マインスイーパーができるまで</div>
+  <a href="./" class="play-link">&#9654; ゲームをプレイ</a>
+</div>
+
+<main>
+
+<!-- ========== Section 1: 制作過程 ========== -->
+<section>
+  <h2><span class="icon">💬</span>Claude Code への指示</h2>
+  <p>
+    このゲームは <strong>Claude Code</strong>（Anthropic 公式の CLI ツール）に日本語で指示を出し、
+    対話的に開発しました。最初のプロンプトから公開まで、わずか数ステップです。
+  </p>
+
+  <div class="prompt-flow">
+
+    <div class="prompt-card">
+      <div class="prompt-step">Step 1</div>
+      <div class="prompt-user">マインスイーパーをつくりたい</div>
+      <div class="prompt-result">
+        <strong>結果：</strong>クラシックな 2D マインスイーパーを HTML/CSS/JS の単一ファイルで生成。
+        初級・中級・上級の3段階、Windows 風デザイン、初回クリック安全機能付き。
+      </div>
+    </div>
+
+    <div class="prompt-card">
+      <div class="prompt-step">Step 2</div>
+      <div class="prompt-user">これを Cloudflare に公開して</div>
+      <div class="prompt-result">
+        <strong>結果：</strong><code>wrangler</code> CLI を使い Cloudflare Pages に自動デプロイ。
+        プロジェクト作成からアップロードまで Claude Code が一括実行。
+      </div>
+    </div>
+
+    <div class="prompt-card">
+      <div class="prompt-step">Step 3</div>
+      <div class="prompt-user">これを立方体で縦横5×5くらいで作成してウェブで nishitani のサブドメインで公開して</div>
+      <div class="prompt-result">
+        <strong>結果：</strong>ゲームを完全リライト。CSS 3D Transform で回転する立方体を実装。
+        6面×5×5＝150 セルの 3D マインスイーパーに進化。
+        面をまたぐ隣接判定は「3D 座標の共有頂点」アルゴリズムで解決。
+        <code>nishitani.pages.dev</code> にデプロイ。
+      </div>
+    </div>
+
+    <div class="prompt-card">
+      <div class="prompt-step">Step 4</div>
+      <div class="prompt-user">マウスでぐるぐる回せないです</div>
+      <div class="prompt-result">
+        <strong>結果：</strong>セルがキューブ全面を覆っていたため、ドラッグがブロックされていた問題を修正。
+        マウスの移動距離（5px 閾値）でドラッグとクリックを判別する方式に変更。
+      </div>
+    </div>
+
+    <div class="prompt-card">
+      <div class="prompt-step">Step 5</div>
+      <div class="prompt-user">スマートフォンでも対応できるようにしてください</div>
+      <div class="prompt-result">
+        <strong>結果：</strong>タッチイベント全面対応。画面サイズに合わせたキューブの自動スケーリング、
+        長押しでフラグ、掘る/旗のモード切替ボタン、ピンチズーム無効化など。
+      </div>
+    </div>
+
+    <div class="prompt-card">
+      <div class="prompt-step">Step 6</div>
+      <div class="prompt-user">制作過程やソースコード・スタックの解説ページを作って</div>
+      <div class="prompt-result">
+        <strong>結果：</strong>このページです。
+      </div>
+    </div>
+
+  </div>
+
+  <div class="highlight-box">
+    <p>
+      全てのコード生成・バグ修正・デプロイを Claude Code が実行しました。
+      人間が行ったのは日本語での指示出しと、ブラウザでの動作確認のみです。
+    </p>
+  </div>
+</section>
+
+<!-- ========== Section 2: ソースコード解説 ========== -->
+<section>
+  <h2><span class="icon">📖</span>ソースコード解説</h2>
+  <p>
+    ゲーム全体は <strong>index.html</strong> の単一ファイル（HTML + CSS + JavaScript）で構成されています。
+    外部ライブラリ・フレームワークは一切使用していません。
+  </p>
+
+  <h3>1. CSS 3D キューブ</h3>
+  <p>
+    CSS の <code>transform-style: preserve-3d</code> と <code>perspective</code> で
+    3D 空間を作り、6つの <code>.face</code> 要素を <code>translateZ</code> / <code>rotateX</code> / <code>rotateY</code>
+    で立方体に配置しています。
+  </p>
+  <pre><code>.face-front  { transform: translateZ(100px); }
+.face-back   { transform: rotateY(180deg) translateZ(100px); }
+.face-top    { transform: rotateX(90deg) translateZ(100px); }
+.face-bottom { transform: rotateX(-90deg) translateZ(100px); }
+.face-left   { transform: rotateY(-90deg) translateZ(100px); }
+.face-right  { transform: rotateY(90deg) translateZ(100px); }</code></pre>
+  <p>
+    <code>backface-visibility: hidden</code> で裏面を非表示にし、
+    実際の立方体のように手前の3面だけが見えます。
+  </p>
+
+  <h3>2. 面をまたぐ隣接判定（核心アルゴリズム）</h3>
+  <p>
+    通常のマインスイーパーは 2D グリッドで周囲8マスを見ればよいですが、
+    立方体では面の端にあるセルの隣が別の面に回り込みます。
+    さらに立方体の頂点では3つの面が交わります。
+  </p>
+  <p>
+    この問題を、<strong>3D 座標上の頂点共有</strong> で解決しています。
+  </p>
+  <ol>
+    <li>各セルの 4つの角（頂点）を 3D 座標に変換</li>
+    <li>全セルの頂点を座標ごとにグループ化</li>
+    <li>同じ頂点を共有するセル同士を「隣接」と判定</li>
+  </ol>
+  <pre><code>// 例：Front 面のセル(r,c) の 4頂点を3D座標に変換
+case 0: // Front: z=5
+  for (let dx = 0; dx <= 1; dx++)
+    for (let dy = 0; dy <= 1; dy++)
+      corners.push([c + dx, 4 - r + dy, 5]);</code></pre>
+  <p>
+    この方法なら面をまたぐ辺の隣接も、頂点で3面が交わる角の隣接も、
+    座標の一致だけで自動的に正しく求まります。
+    6面×25セル＝150セルに対して事前計算するため、ゲーム中のパフォーマンスに影響しません。
+  </p>
+
+  <h3>3. ドラッグ vs クリック判定</h3>
+  <p>
+    セルがキューブ全面を覆っているため、ドラッグとクリックの区別が必要です。
+    <code>mousedown</code> / <code>touchstart</code> からの移動距離が
+    <strong>8px を超えたら回転</strong>、超えなければセルへのクリックとして処理しています。
+  </p>
+  <pre><code>// 移動距離が閾値を超えたらドラッグモード
+if (|totalDx| > 8 || |totalDy| > 8) {
+  pointerDidDrag = true;  // → キューブ回転
+}
+// mouseup 時にドラッグでなければ → セルクリック</code></pre>
+
+  <h3>4. 長押しでフラグ（モバイル対応）</h3>
+  <p>
+    スマートフォンには右クリックがないため、
+    <strong>400ms の長押し</strong>でフラグを立てられるようにしています。
+    長押し中はセルに赤枠のフィードバックを表示。
+    もちろん「掘る/旗」のモード切替ボタンでも操作可能です。
+  </p>
+
+  <h3>5. レスポンシブ対応</h3>
+  <p>
+    画面サイズに合わせて CSS <code>transform: scale()</code> でキューブ全体を拡大縮小。
+    <code>clamp()</code> でフォントサイズを画面幅に応じて自動調整。
+    <code>touch-action: none</code> でページのスクロール・ピンチズームを防止し、
+    全てのタッチ操作をゲーム側で制御しています。
+  </p>
+</section>
+
+<!-- ========== Section 3: 技術スタック ========== -->
+<section>
+  <h2><span class="icon">🔧</span>技術スタック</h2>
+
+  <div class="stack-diagram">
+    <div class="stack-layer">
+      <div class="layer-name">ブラウザ（クライアント）</div>
+      <div class="layer-desc">HTML / CSS 3D Transforms / Vanilla JavaScript</div>
+    </div>
+    <div class="stack-layer">
+      <div class="layer-name">ホスティング</div>
+      <div class="layer-desc">Cloudflare Pages（静的サイトホスティング）</div>
+    </div>
+    <div class="stack-layer">
+      <div class="layer-name">CDN / エッジ</div>
+      <div class="layer-desc">Cloudflare グローバル CDN（自動）</div>
+    </div>
+    <div class="stack-layer">
+      <div class="layer-name">デプロイツール</div>
+      <div class="layer-desc">Wrangler CLI（Cloudflare 公式）</div>
+    </div>
+    <div class="stack-layer">
+      <div class="layer-name">開発環境</div>
+      <div class="layer-desc">Claude Code（Anthropic CLI）</div>
+    </div>
+  </div>
+
+  <h3>各技術の詳細</h3>
+
+  <div class="arch-grid">
+    <div class="arch-item">
+      <div class="arch-icon">🌐</div>
+      <div class="arch-name">HTML/CSS/JS</div>
+      <div class="arch-desc">フレームワーク不使用。単一ファイルで完結。CSS 3D Transform で立方体を描画。</div>
+    </div>
+    <div class="arch-item">
+      <div class="arch-icon">☁️</div>
+      <div class="arch-name">Cloudflare Pages</div>
+      <div class="arch-desc">静的ファイルのホスティング。無料枠で十分。サーバーサイドの処理は不要。</div>
+    </div>
+    <div class="arch-item">
+      <div class="arch-icon">⚡</div>
+      <div class="arch-name">Cloudflare CDN</div>
+      <div class="arch-desc">世界中のエッジサーバーから配信。Pages にデプロイすると自動的に CDN が有効に。</div>
+    </div>
+    <div class="arch-item">
+      <div class="arch-icon">🔨</div>
+      <div class="arch-name">Wrangler</div>
+      <div class="arch-desc">Cloudflare の公式 CLI。<code>wrangler pages deploy .</code> でデプロイ完了。</div>
+    </div>
+    <div class="arch-item">
+      <div class="arch-icon">🤖</div>
+      <div class="arch-name">Claude Code</div>
+      <div class="arch-desc">Anthropic の AI コーディングツール。自然言語の指示からコード生成・デプロイまで実行。</div>
+    </div>
+    <div class="arch-item">
+      <div class="arch-icon">📱</div>
+      <div class="arch-name">レスポンシブ</div>
+      <div class="arch-desc">CSS clamp() と JS によるスケーリングでモバイル対応。外部 CSS ライブラリ不使用。</div>
+    </div>
+  </div>
+
+  <h3>なぜこの構成か</h3>
+  <ul>
+    <li><strong>バンドラー・ビルドツール不要</strong> ― HTML 1 ファイルなのでビルドステップがなく、そのままデプロイできる</li>
+    <li><strong>サーバーレス</strong> ― ゲームのロジックは全てクライアント側。サーバー費用ゼロ</li>
+    <li><strong>高速配信</strong> ― Cloudflare CDN により世界中のユーザーに低遅延で配信</li>
+    <li><strong>HTTPS 自動</strong> ― Cloudflare Pages は SSL/TLS 証明書を自動発行</li>
+    <li><strong>独自ドメイン不要</strong> ― <code>nishitani.pages.dev</code> のサブドメインがすぐ使える</li>
+  </ul>
+</section>
+
+<!-- ========== Section 4: ファイル構成 ========== -->
+<section>
+  <h2><span class="icon">📁</span>ファイル構成</h2>
+  <pre><code>nishitani/
+├── index.html    ← ゲーム本体（HTML + CSS + JS、約 500 行）
+└── about.html    ← このページ（制作過程・解説）</code></pre>
+  <p>
+    たった2ファイル。ビルド出力もなく、<code>node_modules</code> もなく、
+    <code>package.json</code> すら不要です。
+    <code>wrangler pages deploy .</code> でカレントディレクトリをそのままアップロードしています。
+  </p>
+</section>
+
+<!-- ========== Section 5: まとめ ========== -->
+<section>
+  <h2><span class="icon">✨</span>まとめ</h2>
+  <p>
+    「マインスイーパーをつくりたい」という一言から始まり、6回の指示で
+    3D キューブ版マインスイーパーの開発・デプロイ・モバイル対応・ドキュメント作成まで完了しました。
+  </p>
+  <p>
+    Claude Code はコード生成だけでなく、Cloudflare へのデプロイやバグ修正も
+    対話的に実行できるため、開発者がターミナルで行う作業の大部分を自然言語で指示できます。
+  </p>
+  <div class="highlight-box">
+    <p>
+      人間が書いたコード：<strong>0 行</strong><br>
+      人間が実行したコマンド：<strong>0 個</strong><br>
+      人間がやったこと：<strong>日本語で指示を出し、ブラウザで確認しただけ</strong>
+    </p>
+  </div>
+</section>
+
+</main>
+
+<div class="footer">
+  <p>Built with Claude Code by Anthropic &mdash; <a href="./">ゲームに戻る</a></p>
+</div>
+
+</body>
+</html>
