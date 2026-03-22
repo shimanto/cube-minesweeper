@@ -111,7 +111,7 @@ h1 {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  font-size: clamp(13px, 3.5vw, 15px);
+  font-size: clamp(26px, 7vw, 30px);
 }
 
 .bomb-selector select {
@@ -120,7 +120,7 @@ h1 {
   border: 1px solid rgba(255,255,255,0.2);
   border-radius: 6px;
   padding: 4px 8px;
-  font-size: clamp(13px, 3.5vw, 15px);
+  font-size: clamp(26px, 7vw, 30px);
   font-family: 'Courier New', monospace;
   cursor: pointer;
 }
@@ -343,10 +343,10 @@ h1 {
     <label for="bomb-select">💣 爆弾数:</label>
     <select id="bomb-select" onchange="changeMineCount(this.value)">
       <option value="5">5</option>
-      <option value="10">10</option>
+      <option value="10" selected>10</option>
       <option value="15">15</option>
       <option value="20">20</option>
-      <option value="25" selected>25</option>
+      <option value="25">25</option>
       <option value="30">30</option>
       <option value="35">35</option>
       <option value="40">40</option>
@@ -380,7 +380,7 @@ h1 {
 const N = 5;
 const FACES = 6;
 const TOTAL = FACES * N * N;
-let MINE_COUNT = 25;
+let MINE_COUNT = 10;
 const FACE_NAMES = ['front', 'back', 'top', 'bottom', 'left', 'right'];
 const FACE_LABELS = ['Front', 'Back', 'Top', 'Bottom', 'Left', 'Right'];
 
